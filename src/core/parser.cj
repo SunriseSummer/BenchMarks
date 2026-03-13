@@ -173,21 +173,21 @@ func parseTrackContent(tokens: ArrayList<String>, track: TrackData, score: Score
             }
             let chordStr = chordBuf.toString()
             // Parse: [C3 E3 G3]:2
-            let rr = chordStr.toRuneArray()
+            let runes = chordStr.toRuneArray()
             // Find ']' manually
             var bracketEnd: Int64 = -1
-            var bi: Int64 = 0
-            while (bi < rr.size) {
-                if (rr[bi] == r']') { bracketEnd = bi; break }
-                bi++
+            var idx: Int64 = 0
+            while (idx < runes.size) {
+                if (runes[idx] == r']') { bracketEnd = idx; break }
+                idx++
             }
             if (bracketEnd >= 0) {
-                let content = String(rr[1..bracketEnd])
+                let content = String(runes[1..bracketEnd])
                 var durStr = "4"
                 // After ], check for :duration
                 let afterBracket = bracketEnd + 1
-                if (afterBracket < rr.size && rr[afterBracket] == r':') {
-                    durStr = String(rr[afterBracket + 1..rr.size])
+                if (afterBracket < runes.size && runes[afterBracket] == r':') {
+                    durStr = String(runes[afterBracket + 1..runes.size])
                 }
                 let chord = parseColonChord(content, durStr)
                 track.elements.add(MusicElement.Chord(chord))

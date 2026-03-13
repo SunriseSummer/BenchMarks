@@ -295,15 +295,15 @@ func generateEvent(input: String): Array<UInt8> {
     for (line in input.split("\n")) {
         var trimmed = line.trimAscii()
         // Strip inline comments
-        let tr = trimmed.toRuneArray()
+        let runes = trimmed.toRuneArray()
         var commentPos: Int64 = -1
-        var ci: Int64 = 0
-        while (ci + 1 < tr.size) {
-            if (tr[ci] == r'/' && tr[ci + 1] == r'/') { commentPos = ci; break }
-            ci++
+        var index: Int64 = 0
+        while (index + 1 < runes.size) {
+            if (runes[index] == r'/' && runes[index + 1] == r'/') { commentPos = index; break }
+            index++
         }
         if (commentPos >= 0) {
-            trimmed = String(tr[0..commentPos]).trimAscii()
+            trimmed = String(runes[0..commentPos]).trimAscii()
         }
         if (trimmed.isEmpty()) { continue }
 
