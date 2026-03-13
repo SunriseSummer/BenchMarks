@@ -1,7 +1,7 @@
 // 玛丽有只小羊羔 — 音高映射
 tempo 120
 
-track "melody" {
+track melody {
     E4:4  D4:4  C4:4  D4:4
     E4:4  E4:4  E4:2
     D4:4  D4:4  D4:2

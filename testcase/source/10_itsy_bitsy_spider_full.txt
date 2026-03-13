@@ -2,7 +2,7 @@
 // 主旋律
 tempo 120
 
-track "melody" {
+track melody {
     instrument "piano"
     G4:4  C5:4  C5:4  C5:4
     D5:4  E5:4  E5:2
@@ -16,7 +16,7 @@ track "melody" {
 
 // 弦乐和弦
 
-track "harmony" {
+track harmony {
     instrument "strings"
     [C3 E3 G3]:2  [C3 E3 G3]:2
     [F3 A3 C4]:2  [C3 E3 G3]:2
@@ -30,7 +30,7 @@ track "harmony" {
 
 // 贝斯低音
 
-track "bass" {
+track bass {
     instrument "bass"
     C2:2  E2:2
     F2:2  C2:2

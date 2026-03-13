@@ -1,7 +1,7 @@
 // 关达拉美拉 — 休止符
 tempo 100
 
-track "melody" {
+track melody {
     _:4  G4:4  A4:4  B4:4
     C5:4  D5:4  C5:2
     _:8  E4:8  G4:4  A4:4  B4:4

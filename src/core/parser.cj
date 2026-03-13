@@ -323,11 +323,11 @@ public func parseScore(input: String): ScoreData {
             continue
         }
 
-        // Track block: track "name" { ... }
+        // Track block: track name { ... }
         if (tok == "track") {
             var trackName = "track"
             i++
-            if (i < size && tokens[i].startsWith("\"")) {
+            if (i < size && tokens[i] != "{") {
                 trackName = extractQuoted(tokens[i])
                 i++
             }

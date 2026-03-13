@@ -2,7 +2,7 @@
 // 主旋律
 tempo 132
 
-track "melody" {
+track melody {
     instrument "violin"
     A4:4  B4:4  C5:4  D5:4
     E5:4  D5:4  C5:4  B4:4
@@ -16,7 +16,7 @@ track "melody" {
 
 // 和弦
 
-track "harmony" {
+track harmony {
     instrument "strings"
     [A3 C4 E4]:2  [A3 C4 E4]:2
     [E3 G#3 B3]:2  [A3 C4 E4]:2
@@ -30,7 +30,7 @@ track "harmony" {
 
 // 低音
 
-track "bass" {
+track bass {
     instrument "bass"
     A2:2  C3:2
     E2:2  A2:2

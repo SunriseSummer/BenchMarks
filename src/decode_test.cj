@@ -199,18 +199,18 @@ class DecodeTests {
         let input =
             "tempo 120\n" +
             "\n" +
-            "track \"melody\" {\n" +
+            "track melody {\n" +
             "    instrument \"guitar\"\n" +
             "    C4:4 D4:4 E4:8 E4:8 F4:4\n" +
             "    G4:2 _:4 A4:4\n" +
             "}\n" +
             "\n" +
-            "track \"chords\" {\n" +
+            "track chords {\n" +
             "    instrument \"strings\"\n" +
             "    [C3 E3 G3]:2 [F3 A3 C4]:2\n" +
             "}\n" +
             "\n" +
-            "track \"bass\" {\n" +
+            "track bass {\n" +
             "    instrument \"bass\"\n" +
             "    C2:2 F2:2\n" +
             "}\n"

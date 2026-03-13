@@ -3,7 +3,7 @@ tempo 116
 
 let verse_chord = { [A3 C4 E4]:2 [D3 F3 A3]:2 [E3 G#3 B3]:2 [A3 C4 E4]:2 }
 
-track "flute" {
+track flute {
     instrument "flute"
     velocity 95
     A4:4  B4:4  C5:4  D5:4
@@ -16,7 +16,7 @@ track "flute" {
     A4:1
 }
 
-track "violin" {
+track violin {
     instrument "violin"
     velocity 85
     _:1
@@ -29,14 +29,14 @@ track "violin" {
     A4:1
 }
 
-track "strings" {
+track strings {
     instrument "strings"
     velocity 70
     verse_chord
     verse_chord
 }
 
-track "bass" {
+track bass {
     instrument "bass"
     velocity 80
     A2:2  D3:2

@@ -16,7 +16,7 @@ class EncodeTests {
         let input =
             "tempo 120\n" +
             "\n" +
-            "track \"melody\" {\n" +
+            "track melody {\n" +
             "    instrument \"piano\"\n" +
             "    C4:4 D4:4 E4:4 F4:4\n" +
             "    G4:2\n" +
@@ -34,19 +34,19 @@ class EncodeTests {
         let input =
             "tempo 108\n" +
             "\n" +
-            "track \"melody\" {\n" +
+            "track melody {\n" +
             "    instrument \"piano\"\n" +
             "    C4:4 C4:4 G4:4 G4:4\n" +
             "    A4:4 A4:4 G4:2\n" +
             "}\n" +
             "\n" +
-            "track \"harmony\" {\n" +
+            "track harmony {\n" +
             "    instrument \"strings\"\n" +
             "    [C3 E3 G3]:2 [C3 E3 G3]:2\n" +
             "    [F3 A3 C4]:2 [C3 E3 G3]:2\n" +
             "}\n" +
             "\n" +
-            "track \"bass\" {\n" +
+            "track bass {\n" +
             "    instrument \"bass\"\n" +
             "    C2:2 E2:2\n" +
             "    F2:2 C2:2\n" +
@@ -67,7 +67,7 @@ class EncodeTests {
     func velocityControl() {
         let input =
             "tempo 100\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    velocity 100\n" +
             "    C4:4 D4:4 E4:4 F4:4\n" +
@@ -90,7 +90,7 @@ class EncodeTests {
     func dottedNotes() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C4:4. D4:8. E4:2.\n" +
             "}\n"
@@ -103,7 +103,7 @@ class EncodeTests {
     func accidentals() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C#4:4 Bb3:4 F#4:8\n" +
             "}\n"
@@ -120,7 +120,7 @@ class EncodeTests {
     func rests() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C4:4 _:4 D4:4\n" +
             "}\n"
@@ -135,7 +135,7 @@ class EncodeTests {
         let input =
             "tempo 120\n" +
             "let motif = { C4:4 D4:4 E4:4 }\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    motif\n" +
             "    motif\n" +
@@ -165,7 +165,7 @@ class EncodeTests {
     func rawTickDurations() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C4:T216 D4:T432 _:T100 E4:T108\n" +
             "}\n"
@@ -180,12 +180,12 @@ class EncodeTests {
     func channelPreservation() {
         let input =
             "tempo 120\n" +
-            "track \"melody\" {\n" +
+            "track melody {\n" +
             "    channel 1\n" +
             "    instrument \"bright_piano\"\n" +
             "    C4:4 D4:4\n" +
             "}\n" +
-            "track \"drums\" {\n" +
+            "track drums {\n" +
             "    channel 9\n" +
             "    instrument \"piano\"\n" +
             "    C4:32 D4:32\n" +

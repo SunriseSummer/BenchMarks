@@ -1,7 +1,7 @@
 // 原始 tick 时值 — 非标准节奏
 tempo 90
 
-track "melody" {
+track melody {
     instrument "flute"
     velocity 80
     C4:T320  D4:T160  E4:T480

@@ -1,7 +1,7 @@
 // 速度变化 — 渐快渐慢
 tempo 80
 
-track "melody" {
+track melody {
     instrument "piano"
     // 慢速开始
     C4:4  D4:4  E4:4  F4:4

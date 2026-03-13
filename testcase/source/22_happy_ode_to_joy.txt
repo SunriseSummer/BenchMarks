@@ -1,7 +1,7 @@
 // 欢乐颂 — 欢乐女神
 tempo 144
 
-track "melody" {
+track melody {
     // 欢乐女神
     E4:4  E4:4  F4:4  G4:4
     // 圣洁美丽

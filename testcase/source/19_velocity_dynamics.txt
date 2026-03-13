@@ -1,7 +1,7 @@
 // 力度变化 — 渐强渐弱
 tempo 88
 
-track "melody" {
+track melody {
     instrument "piano"
     // pp 弱
     velocity 40

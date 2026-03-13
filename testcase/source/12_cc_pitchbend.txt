@@ -1,7 +1,7 @@
 // CC 控制器与弯音 — 表情控制
 tempo 100
 
-track "lead" {
+track lead {
     instrument "violin"
     velocity 85
     cc 7 100       // 音量
@@ -18,7 +18,7 @@ track "lead" {
     A4:2
 }
 
-track "pad" {
+track pad {
     instrument "strings"
     velocity 60
     [A3 C4 E4]:1

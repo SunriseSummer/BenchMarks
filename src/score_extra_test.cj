@@ -16,7 +16,7 @@ class ScoreExtraTests {
     func emptyTrack() {
         let input =
             "tempo 120\n" +
-            "track \"empty\" {\n" +
+            "track empty {\n" +
             "    instrument \"piano\"\n" +
             "}\n"
         let data = generate(input)
@@ -28,7 +28,7 @@ class ScoreExtraTests {
     func restOnlyTrack() {
         let input =
             "tempo 120\n" +
-            "track \"silence\" {\n" +
+            "track silence {\n" +
             "    instrument \"piano\"\n" +
             "    _:1 _:1\n" +
             "}\n"
@@ -43,7 +43,7 @@ class ScoreExtraTests {
     func wholeNotes() {
         let input =
             "tempo 60\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C4:1 D4:1\n" +
             "}\n"
@@ -57,7 +57,7 @@ class ScoreExtraTests {
     func thirtySecondNotes() {
         let input =
             "tempo 120\n" +
-            "track \"fast\" {\n" +
+            "track fast {\n" +
             "    instrument \"piano\"\n" +
             "    C4:32 D4:32 E4:32 F4:32 G4:32 A4:32 B4:32 C5:32\n" +
             "}\n"
@@ -71,7 +71,7 @@ class ScoreExtraTests {
     func dottedVarieties() {
         let input =
             "tempo 100\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C4:2. D4:8. E4:1\n" +
             "}\n"
@@ -86,7 +86,7 @@ class ScoreExtraTests {
     func largeChord() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    [C3 E3 G3 C4 E4 G4]:2\n" +
             "}\n"
@@ -100,7 +100,7 @@ class ScoreExtraTests {
     func consecutiveChords() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"guitar\"\n" +
             "    [C3 E3 G3]:4 [F3 A3 C4]:4 [G3 B3 D4]:4 [C3 E3 G3]:4\n" +
             "}\n"
@@ -115,7 +115,7 @@ class ScoreExtraTests {
         let input =
             "tempo 120\n" +
             "let phrase = { C4:8 D4:8 E4:8 F4:8 }\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    phrase\n" +
             "    G4:4\n" +
@@ -134,7 +134,7 @@ class ScoreExtraTests {
             "tempo 120\n" +
             "let intro = { C4:4 D4:4 }\n" +
             "let chorus = { E4:4 F4:4 G4:4 }\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    intro\n" +
             "    chorus\n" +
@@ -149,7 +149,7 @@ class ScoreExtraTests {
     func extremeOctaves() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C1:4 C2:4 C3:4 C4:4 C5:4 C6:4 C7:4 C8:4\n" +
             "}\n"
@@ -166,7 +166,7 @@ class ScoreExtraTests {
     func allNoteNames() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C4:8 D4:8 E4:8 F4:8 G4:8 A4:8 B4:8\n" +
             "}\n"
@@ -187,7 +187,7 @@ class ScoreExtraTests {
     func allAccidentals() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C#4:8 D#4:8 F#4:8 G#4:8 A#4:8\n" +
             "    Db4:8 Eb4:8 Gb4:8 Ab4:8 Bb4:8\n" +
@@ -206,7 +206,7 @@ class ScoreExtraTests {
     func alternatingNotesAndRests() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C4:4 _:4 D4:4 _:4 E4:4 _:4 F4:4 _:4\n" +
             "}\n"
@@ -223,7 +223,7 @@ class ScoreExtraTests {
             "tempo 120  // 速度设置\n" +
             "\n" +
             "// 下面是主轨道\n" +
-            "track \"melody\" {\n" +
+            "track melody {\n" +
             "    instrument \"piano\"  // 钢琴\n" +
             "    C4:4 D4:4  // 第一小节\n" +
             "    E4:4 F4:4  // 第二小节\n" +
@@ -239,15 +239,15 @@ class ScoreExtraTests {
     func autoChannelAssignment() {
         let input =
             "tempo 120\n" +
-            "track \"t1\" {\n" +
+            "track t1 {\n" +
             "    instrument \"piano\"\n" +
             "    C4:4\n" +
             "}\n" +
-            "track \"t2\" {\n" +
+            "track t2 {\n" +
             "    instrument \"guitar\"\n" +
             "    E4:4\n" +
             "}\n" +
-            "track \"t3\" {\n" +
+            "track t3 {\n" +
             "    instrument \"bass\"\n" +
             "    G3:4\n" +
             "}\n"
@@ -262,7 +262,7 @@ class ScoreExtraTests {
     func inlineTempoChange() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C4:4 D4:4\n" +
             "    tempo 90\n" +
@@ -287,7 +287,7 @@ class ScoreExtraTests {
     func ccAndPitchBend() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    cc 64 127\n" +
             "    C4:4\n" +
@@ -308,7 +308,7 @@ class ScoreExtraTests {
     func chordThenNotes() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    [C4 E4 G4]:4 C5:4 B4:4 A4:4\n" +
             "}\n"
@@ -322,7 +322,7 @@ class ScoreExtraTests {
     func mixedTickAndDuration() {
         let input =
             "tempo 120\n" +
-            "track \"t\" {\n" +
+            "track t {\n" +
             "    instrument \"piano\"\n" +
             "    C4:4 D4:T360 E4:8 F4:T60\n" +
             "}\n"
@@ -337,7 +337,7 @@ class ScoreExtraTests {
         let input =
             "tempo 96\n" +
             "\n" +
-            "track \"lead\" {\n" +
+            "track lead {\n" +
             "    instrument \"flute\"\n" +
             "    velocity 100\n" +
             "    A4:4 B4:4 C5:4 D5:4\n" +
@@ -345,7 +345,7 @@ class ScoreExtraTests {
             "    C5:4 B4:4 A4:2\n" +
             "}\n" +
             "\n" +
-            "track \"chords\" {\n" +
+            "track chords {\n" +
             "    instrument \"strings\"\n" +
             "    velocity 75\n" +
             "    [A3 C4 E4]:2 [D3 F3 A3]:2\n" +
@@ -353,7 +353,7 @@ class ScoreExtraTests {
             "    [A3 C4 E4]:2 [E3 G#3 B3]:2\n" +
             "}\n" +
             "\n" +
-            "track \"bass\" {\n" +
+            "track bass {\n" +
             "    instrument \"bass\"\n" +
             "    A2:2 D3:2\n" +
             "    E2:2 D3:2\n" +

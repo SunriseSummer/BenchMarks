@@ -132,7 +132,7 @@ midi --decompile testcase/binary/              # 反编译整个目录
 |------|------|------|
 | `tempo <bpm>` | 设定全局速度 | `tempo 120` |
 | `let <名> = { ... }` | 定义变量（可复用片段） | `let theme = { C4:4 D4:4 }` |
-| `track "名称" { ... }` | 轨道块 | `track "melody" { ... }` |
+| `track <名称> { ... }` | 轨道块 | `track melody { ... }` |
 
 ### 轨道内指令
 
@@ -178,7 +178,7 @@ tempo 132
 let Am = { [A3 C4 E4]:2 }
 let Em = { [E3 G#3 B3]:2 }
 
-track "melody" {
+track melody {
     instrument "violin"
     A4:4  B4:4  C5:4  D5:4
     E5:4  D5:4  C5:4  B4:4
@@ -186,7 +186,7 @@ track "melody" {
     C5:4  B4:4  A4:2
 }
 
-track "harmony" {
+track harmony {
     instrument "strings"
     Am Am
     Em Am
@@ -194,7 +194,7 @@ track "harmony" {
     Am Em
 }
 
-track "bass" {
+track bass {
     instrument "bass"
     A2:2  C3:2
     E2:2  A2:2

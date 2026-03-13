@@ -1,7 +1,7 @@
 // 快速十六分音符跑动 — 速度测试
 tempo 160
 
-track "lead" {
+track lead {
     instrument "piano"
     // 快速音阶上行
     C4:16  D4:16  E4:16  F4:16  G4:16  A4:16  B4:16  C5:16
@@ -13,7 +13,7 @@ track "lead" {
     C4:1
 }
 
-track "chords" {
+track chords {
     instrument "strings"
     [C3 E3 G3]:1
     [G2 B2 D3]:1

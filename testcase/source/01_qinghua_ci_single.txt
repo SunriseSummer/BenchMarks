@@ -1,6 +1,6 @@
 // 青花瓷 — 单音测试
 tempo 72
 
-track "melody" {
+track melody {
     A4:4
 }

@@ -1,7 +1,7 @@
 // 阿黛尔 Someone Like You — 多轨道
 tempo 68
 
-track "melody" {
+track melody {
     instrument "piano"
     E4:4  G4:4  A4:4  B4:4
     A4:4  G4:4  E4:2
@@ -13,7 +13,7 @@ track "melody" {
     G4:4  E4:4  D4:2
 }
 
-track "bass" {
+track bass {
     instrument "bass"
     A2:2  E3:2
     D3:2  A2:2

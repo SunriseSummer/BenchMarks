@@ -5,7 +5,7 @@ let Am = { [A3 C4 E4]:2 }
 let Em = { [E3 G#3 B3]:2 }
 let Dm = { [D3 F3 A3]:2 }
 
-track "melody" {
+track melody {
     instrument "piano"
     velocity 90
     A4:4  B4:4  C5:4  D5:4
@@ -15,7 +15,7 @@ track "melody" {
     A4:4  G#4:4  A4:2
 }
 
-track "harmony" {
+track harmony {
     instrument "strings"
     Am Am
     Dm Em
@@ -23,7 +23,7 @@ track "harmony" {
     Em Am
 }
 
-track "bass" {
+track bass {
     instrument "bass"
     A2:2  C3:2
     D3:2  E3:2
