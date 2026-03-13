@@ -328,7 +328,7 @@ public func parseScore(input: String): ScoreData {
             var trackName = "track"
             i++
             if (i < size && tokens[i] != "{") {
-                trackName = extractQuoted(tokens[i])
+                trackName = tokens[i]
                 i++
             }
             if (i < size && tokens[i] == "{") {
