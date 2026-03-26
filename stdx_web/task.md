@@ -2,12 +2,12 @@
 
 ## 1. 任务目标
 
-使用仓颉（Cangjie）编程语言和**扩展标准库 stdx**，实现一个**笔记管理 REST API 服务**，包含服务端和客户端，支持：
+使用仓颉（Cangjie）编程语言和**扩展标准库 stdx**，实现一个**笔记管理 REST API 服务**，同时支持 HTTP 和 **HTTPS** 通信，包含服务端和客户端，支持：
 
 - **数据模型**：定义笔记（Note）数据结构，使用 `stdx.encoding.json` 进行 JSON 序列化和反序列化
 - **业务逻辑**：内存存储的笔记增删改查（CRUD）和按标签过滤、统计功能
-- **HTTP 服务端**：使用 `stdx.net.http` 提供 RESTful API 端点
-- **HTTP 客户端**：使用 `stdx.net.http` 的 Client 消费 API 实现交互
+- **HTTP/HTTPS 服务端**：使用 `stdx.net.http` 和 `stdx.net.tls` 提供 RESTful API 端点，支持 TLS 加密通信
+- **HTTP/HTTPS 客户端**：使用 `stdx.net.http` 和 `stdx.net.tls` 的 Client 消费 API 实现交互
 
 ---
 
@@ -16,11 +16,16 @@
 ```
 stdx_web/
 ├── cjpm.toml                  # 项目配置（需配置 stdx 依赖）
+├── certs/                     # TLS 证书目录
+│   ├── ca.crt                 # CA 证书
+│   ├── ca.key                 # CA 私钥
+│   ├── server.crt             # 服务端证书（CA 签发，SAN 含 IP:127.0.0.1）
+│   └── server.key             # 服务端私钥
 ├── src/
-│   ├── main.cj                # 入口文件（演示服务端/客户端交互）
+│   ├── main.cj                # 入口文件（演示 HTTPS 服务端/客户端交互）
 │   ├── note.cj                # Note 数据模型 + JSON 序列化/反序列化
 │   ├── note_service.cj        # NoteService 业务逻辑（内存存储）
-│   ├── note_server.cj         # NoteServer HTTP 服务端（路由 + 处理器）
+│   ├── note_server.cj         # NoteServer HTTP/HTTPS 服务端（路由 + 处理器）
 │   └── stdx_web_test.cj       # 单元测试（已给定，不可修改）
 ```
 
@@ -44,18 +49,38 @@ cjpm init --name stdx_web --type=executable
 
 [dependencies]
 
+# 注意：path-option 需替换为实际的 stdx 静态库路径
 [target.x86_64-unknown-linux-gnu]
   [target.x86_64-unknown-linux-gnu.bin-dependencies]
-    path-option = ["<stdx静态库路径>/static/stdx"]
+    path-option = ["<STDX_PATH>/static/stdx"]
 ```
 
-> **注意**：`<stdx静态库路径>` 需替换为实际解压后的 stdx 目录。
+> **注意**：`<STDX_PATH>` 需替换为实际解压后的 stdx 目录。
 
-### 2.3 依赖的 stdx 包
+### 2.3 TLS 证书生成
+
+测试所需的自签名证书，放在 `certs/` 目录下：
+
+```bash
+mkdir -p certs && cd certs
+
+# 生成 CA
+openssl req -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -days 3650 -nodes -subj "/CN=TestCA"
+
+# 生成服务端证书（需包含 SAN: IP:127.0.0.1）
+openssl req -newkey rsa:2048 -keyout server.key -out server.csr -nodes -subj "/CN=127.0.0.1"
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650 \
+  -extfile <(echo -e "subjectAltName=IP:127.0.0.1\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth")
+rm -f server.csr ca.srl
+```
+
+### 2.4 依赖的 stdx 包
 
 | 包 | 用途 |
 |---|---|
 | `stdx.net.http` | HTTP 服务端（ServerBuilder/Server）和客户端（ClientBuilder/Client） |
+| `stdx.net.tls` | TLS 配置（TlsServerConfig/TlsClientConfig）|
+| `stdx.crypto.x509` | X509 证书和私钥解析（X509Certificate/PrivateKey） |
 | `stdx.encoding.json` | JSON 值类型（JsonObject/JsonArray/JsonString/JsonInt/JsonBool 等）及解析 |
 
 ---
@@ -134,19 +159,45 @@ public class NoteService {
 | `total_notes` | `JsonInt` | 当前笔记总数 |
 | `tag_counts` | `JsonObject`（键为标签名，值为 `JsonInt`） | 各标签出现次数 |
 
-### 3.3 NoteServer HTTP 服务端（note_server.cj）
+### 3.3 NoteServer HTTP/HTTPS 服务端（note_server.cj）
 
 ```cangjie
 public class NoteServer {
     public init(service: NoteService)
-    public func start(addr: String, port: UInt16): Unit  // 非阻塞启动，后台运行
-    public func stop(): Unit                              // 关闭服务器
-    public func getPort(): UInt16                         // 获取实际监听端口
+    public func start(addr: String, port: UInt16): Unit       // HTTP 非阻塞启动
+    public func startTls(addr: String, port: UInt16,           // HTTPS 非阻塞启动
+                         certPem: String, keyPem: String): Unit
+    public func stop(): Unit                                   // 关闭服务器
+    public func getPort(): UInt16                              // 获取实际监听端口
 }
 ```
 
+**架构要求**（降低圈复杂度）：
+- 路由分发方法（`handleNotes`、`handleNote`）仅做方法分派，每个 HTTP 方法对应独立的处理方法
+- 提取公共的响应辅助方法：`respondJson(ctx, status, body)` 和 `respondError(ctx, status, message)`
+- 提取公共的 JSON 数组解析方法：`parseTagsArray(jsonTags)`
+
+```cangjie
+// 路由分发示例（低圈复杂度）
+private func handleNotes(ctx: HttpContext): Unit {
+    let method = ctx.request.method
+    if (method == "POST") {
+        handleCreateNote(ctx)
+    } else if (method == "GET") {
+        handleListNotes(ctx)
+    } else {
+        respondError(ctx, 405, "Method not allowed")
+    }
+}
+
+// 响应辅助方法
+private func respondJson(ctx: HttpContext, status: UInt16, body: String): Unit
+private func respondError(ctx: HttpContext, status: UInt16, message: String): Unit
+```
+
 **启动机制**：
-- 使用 `ServerBuilder` 创建 HTTP 服务器
+- 使用 `ServerBuilder` 创建 HTTP/HTTPS 服务器
+- HTTPS 模式需配置 `TlsServerConfig`，加载证书和私钥
 - 使用 `spawn` 在后台线程运行 `server.serve()`
 - 使用 `SyncCounter` + `afterBind` 等待服务器绑定完成
 - 端口传入 `0` 时由系统分配随机端口，通过 `getPort()` 获取实际端口
@@ -155,9 +206,8 @@ public class NoteServer {
 
 ```cangjie
 func getQueryParam(rawQuery: String, name: String): ?String
+func parseTagsArray(jsonTags: JsonArray): ArrayList<String>
 ```
-
-从 URL 查询字符串（如 `"id=1&tag=work"`）中提取指定参数值。
 
 ---
 
@@ -289,21 +339,29 @@ let name = jv.asObject()["name"].asString().getValue()
 let jsonStr = obj.toString()  // 紧凑格式
 ```
 
-### 5.2 HTTP 服务端（stdx.net.http）
+### 5.2 HTTPS 服务端（stdx.net.http + stdx.net.tls）
 
 ```cangjie
 import stdx.net.http.*
+import stdx.net.tls.*
+import stdx.crypto.x509.{X509Certificate, PrivateKey}
 import std.sync.*
 
-// 构建并启动服务器
-let svr = ServerBuilder().addr("127.0.0.1").port(0).build()
-svr.distributor.register("/api/path", FuncHandler({ ctx =>
-    // 读取请求
-    let method = ctx.request.method          // "GET", "POST", "PUT", "DELETE"
-    let query = ctx.request.url.rawQuery ?? ""  // 查询字符串（?String 类型）
-    let body = StringReader(ctx.request.body).readToEnd()  // 请求体
+// 加载证书
+var tlsConfig = TlsServerConfig(
+    X509Certificate.decodeFromPem(certPem),
+    PrivateKey.decodeFromPem(keyPem)
+)
+tlsConfig.supportedAlpnProtocols = ["http/1.1"]
 
-    // 构建响应
+// 构建并启动 HTTPS 服务器
+let svr = ServerBuilder()
+    .addr("127.0.0.1")
+    .port(0)
+    .tlsConfig(tlsConfig)
+    .build()
+
+svr.distributor.register("/api/path", FuncHandler({ ctx =>
     ctx.responseBuilder
         .status(200)
         .header("Content-Type", "application/json")
@@ -316,33 +374,39 @@ spawn { svr.serve() }
 ready.waitUntilZero()
 ```
 
-### 5.3 HTTP 客户端（stdx.net.http）
+### 5.3 HTTPS 客户端（stdx.net.http + stdx.net.tls）
 
 ```cangjie
 import stdx.net.http.*
+import stdx.net.tls.*
+import stdx.crypto.x509.X509Certificate
 import std.io.{StringReader}
 
-let client = ClientBuilder().build()
+// 配置 TLS（使用自定义 CA 验证服务端证书）
+var tlsConfig = TlsClientConfig()
+tlsConfig.verifyMode = CustomCA(X509Certificate.decodeFromPem(caPem))
+
+let client = ClientBuilder().tlsConfig(tlsConfig).build()
 
 // GET
-let resp = client.get("http://127.0.0.1:8080/api/notes")
+let resp = client.get("https://127.0.0.1:8443/api/notes")
 let body = StringReader(resp.body).readToEnd()
 
 // POST
-let resp = client.post("http://127.0.0.1:8080/api/notes", jsonBody)
+let resp = client.post("https://127.0.0.1:8443/api/notes", jsonBody)
 let body = StringReader(resp.body).readToEnd()
 
 // PUT（使用 HttpRequestBuilder）
 let req = HttpRequestBuilder()
     .put()
-    .url("http://127.0.0.1:8080/api/note")
+    .url("https://127.0.0.1:8443/api/note")
     .header("Content-Type", "application/json")
     .body(jsonBody)
     .build()
 let resp = client.send(req)
 
 // DELETE
-let resp = client.delete("http://127.0.0.1:8080/api/note?id=1")
+let resp = client.delete("https://127.0.0.1:8443/api/note?id=1")
 
 client.close()
 ```
@@ -350,12 +414,15 @@ client.close()
 ### 5.4 需导入的包
 
 ```cangjie
-import stdx.net.http.*        // HTTP 服务端和客户端
-import stdx.encoding.json.*   // JSON 类型和解析
-import std.collection.*       // ArrayList
-import std.convert.*          // Int64.parse 等类型转换
-import std.io.{StringReader}  // 读取请求/响应体
-import std.sync.*             // SyncCounter 同步原语
+import stdx.net.http.*           // HTTP 服务端和客户端
+import stdx.net.tls.*            // TLS 配置（TlsServerConfig/TlsClientConfig）
+import stdx.crypto.x509.{X509Certificate, PrivateKey}  // 证书和私钥
+import stdx.encoding.json.*      // JSON 类型和解析
+import std.collection.*          // ArrayList
+import std.convert.*             // Int64.parse 等类型转换
+import std.io.*                  // StringReader, readToEnd, File
+import std.fs.*                  // File 操作
+import std.sync.*                // SyncCounter 同步原语
 ```
 
 ### 5.5 注意事项
@@ -368,6 +435,11 @@ import std.sync.*             // SyncCounter 同步原语
 | 非阻塞启动 | `serve()` 是阻塞调用，需用 `spawn` 在后台线程运行 |
 | 路由注册 | 默认分发器非线程安全，须在 `serve()` 之前注册所有路由 |
 | ArrayList 删除 | `ArrayList.remove()` 接受 `Range<Int64>` 参数，删除单个元素用 `remove(i..(i+1))` |
+| TLS 证书 | 服务端证书需包含 `subjectAltName=IP:127.0.0.1` |
+| HTTPS 客户端 | 使用 `CustomCA` 模式验证自签名证书，不要在生产中使用 `TrustAll` |
+| ALPN 协议 | 服务端设置 `supportedAlpnProtocols = ["http/1.1"]` 启用 HTTPS |
+| OpenSSL 依赖 | 运行时需要系统安装 OpenSSL 3 |
+| 圈复杂度 | 路由处理器应拆分为独立方法，避免深层嵌套 |
 
 ---
 
@@ -375,13 +447,16 @@ import std.sync.*             // SyncCounter 同步原语
 
 测试文件已给定为 `stdx_web_test.cj`，**不要做修改**，直接引入项目并使用仓颉单元测试框架测试。
 
-测试覆盖三个层次：
+测试运行时需要 `certs/` 目录下的证书文件（HTTPS 测试使用）。
+
+测试覆盖四个层次：
 
 | 测试类 | 测试数量 | 测试内容 |
 |--------|---------|---------|
-| `TestNoteModel` | 7 | Note 模型的 JSON 序列化/反序列化、往返一致性、特殊字符、中文 |
-| `TestNoteService` | 13 | NoteService 的 CRUD 操作、按标签过滤、统计、边界情况 |
-| `TestNoteAPI` | 12 | HTTP API 端点的集成测试，包含完整 CRUD 工作流 |
+| `TestNoteModel` | 9 | Note 模型的 JSON 序列化/反序列化、往返一致性、特殊字符、中文、字段完整性 |
+| `TestNoteService` | 15 | NoteService 的 CRUD 操作、按标签过滤、统计、批量删除、更新保持 ID 不变 |
+| `TestNoteAPI` | 13 | HTTP API 端点集成测试，包含完整 CRUD 工作流、无效 JSON 请求处理 |
+| `TestNoteHTTPSAPI` | 7 | HTTPS API 端点集成测试，验证 TLS 加密通信下的 CRUD 完整工作流 |
 
 ---
 
@@ -391,26 +466,38 @@ import std.sync.*             // SyncCounter 同步原语
 package stdx_web
 
 import stdx.net.http.*
-import std.io.{StringReader}
+import stdx.net.tls.*
+import stdx.crypto.x509.X509Certificate
+import std.io.*
+import std.fs.*
 
 main(): Int64 {
+    // Load TLS certificates
+    let certPem = String.fromUtf8(readToEnd(File("./certs/server.crt", Read)))
+    let keyPem = String.fromUtf8(readToEnd(File("./certs/server.key", Read)))
+    let caPem = String.fromUtf8(readToEnd(File("./certs/ca.crt", Read)))
+
+    // Start HTTPS server
     let service = NoteService()
     let server = NoteServer(service)
-    server.start("127.0.0.1", 0)
+    server.startTls("127.0.0.1", 0, certPem, keyPem)
     let port = server.getPort()
-    let baseUrl = "http://127.0.0.1:${port}"
-    println("Server started on port ${port}")
+    let baseUrl = "https://127.0.0.1:${port}"
+    println("HTTPS server started on port ${port}")
 
-    let client = ClientBuilder().build()
+    // Create HTTPS client (trust our CA)
+    var tlsConfig = TlsClientConfig()
+    tlsConfig.verifyMode = CustomCA(X509Certificate.decodeFromPem(caPem))
+    let client = ClientBuilder().tlsConfig(tlsConfig).build()
 
     // Create a note
-    let createBody = ##"{"title":"Hello Cangjie","content":"Welcome to Cangjie web programming!","tags":["cangjie","tutorial"]}"##
+    let createBody = ##"{"title":"Hello Cangjie","content":"Welcome to Cangjie HTTPS web programming!","tags":["cangjie","tutorial"]}"##
     let createResp = client.post("${baseUrl}/api/notes", createBody)
     let createResult = StringReader(createResp.body).readToEnd()
     println("Created: ${createResult}")
 
     // Create another note
-    let createBody2 = ##"{"title":"Learning Notes","content":"Studying stdx.net.http and stdx.encoding.json","tags":["cangjie","study"]}"##
+    let createBody2 = ##"{"title":"Learning Notes","content":"Studying stdx.net.http and stdx.encoding.json over TLS","tags":["cangjie","study"]}"##
     let createResp2 = client.post("${baseUrl}/api/notes", createBody2)
     let createResult2 = StringReader(createResp2.body).readToEnd()
     println("Created: ${createResult2}")
@@ -439,11 +526,11 @@ main(): Int64 {
 **期望输出**：
 
 ```
-Server started on port <随机端口>
-Created: {"id":1,"title":"Hello Cangjie","content":"Welcome to Cangjie web programming!","tags":["cangjie","tutorial"]}
-Created: {"id":2,"title":"Learning Notes","content":"Studying stdx.net.http and stdx.encoding.json","tags":["cangjie","study"]}
-All notes: {"notes":[{"id":1,"title":"Hello Cangjie","content":"Welcome to Cangjie web programming!","tags":["cangjie","tutorial"]},{"id":2,"title":"Learning Notes","content":"Studying stdx.net.http and stdx.encoding.json","tags":["cangjie","study"]}],"total":2}
-Notes with 'study' tag: {"notes":[{"id":2,"title":"Learning Notes","content":"Studying stdx.net.http and stdx.encoding.json","tags":["cangjie","study"]}],"total":1}
+HTTPS server started on port <随机端口>
+Created: {"id":1,"title":"Hello Cangjie","content":"Welcome to Cangjie HTTPS web programming!","tags":["cangjie","tutorial"]}
+Created: {"id":2,"title":"Learning Notes","content":"Studying stdx.net.http and stdx.encoding.json over TLS","tags":["cangjie","study"]}
+All notes: {"notes":[{"id":1,"title":"Hello Cangjie","content":"Welcome to Cangjie HTTPS web programming!","tags":["cangjie","tutorial"]},{"id":2,"title":"Learning Notes","content":"Studying stdx.net.http and stdx.encoding.json over TLS","tags":["cangjie","study"]}],"total":2}
+Notes with 'study' tag: {"notes":[{"id":2,"title":"Learning Notes","content":"Studying stdx.net.http and stdx.encoding.json over TLS","tags":["cangjie","study"]}],"total":1}
 Stats: {"total_notes":2,"tag_counts":{"cangjie":2,"tutorial":1,"study":1}}
 ```
 
@@ -452,6 +539,6 @@ Stats: {"total_notes":2,"tag_counts":{"cangjie":2,"tutorial":1,"study":1}}
 ## 8. 验收标准
 
 1. `cjpm build` 编译成功，无错误，无警告
-2. `cjpm run` 正确输出服务端/客户端交互结果
-3. `cjpm test` 全部测试通过（32 个测试用例，0 失败）
-4. 代码结构清晰，文件划分合理
+2. `cjpm run` 正确输出 HTTPS 服务端/客户端交互结果
+3. `cjpm test` 全部测试通过（44 个测试用例，0 失败）
+4. 代码结构清晰，文件划分合理，路由处理器圈复杂度低

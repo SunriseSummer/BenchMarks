@@ -1,26 +1,38 @@
 package stdx_web
 
 import stdx.net.http.*
-import std.io.{StringReader}
+import stdx.net.tls.*
+import stdx.crypto.x509.X509Certificate
+import std.io.*
+import std.fs.*
 
 main(): Int64 {
+    // Load TLS certificates
+    let certPem = String.fromUtf8(readToEnd(File("./certs/server.crt", Read)))
+    let keyPem = String.fromUtf8(readToEnd(File("./certs/server.key", Read)))
+    let caPem = String.fromUtf8(readToEnd(File("./certs/ca.crt", Read)))
+
+    // Start HTTPS server
     let service = NoteService()
     let server = NoteServer(service)
-    server.start("127.0.0.1", 0)
+    server.startTls("127.0.0.1", 0, certPem, keyPem)
     let port = server.getPort()
-    let baseUrl = "http://127.0.0.1:${port}"
-    println("Server started on port ${port}")
+    let baseUrl = "https://127.0.0.1:${port}"
+    println("HTTPS server started on port ${port}")
 
-    let client = ClientBuilder().build()
+    // Create HTTPS client (trust our CA)
+    var tlsConfig = TlsClientConfig()
+    tlsConfig.verifyMode = CustomCA(X509Certificate.decodeFromPem(caPem))
+    let client = ClientBuilder().tlsConfig(tlsConfig).build()
 
     // Create a note
-    let createBody = ##"{"title":"Hello Cangjie","content":"Welcome to Cangjie web programming!","tags":["cangjie","tutorial"]}"##
+    let createBody = ##"{"title":"Hello Cangjie","content":"Welcome to Cangjie HTTPS web programming!","tags":["cangjie","tutorial"]}"##
     let createResp = client.post("${baseUrl}/api/notes", createBody)
     let createResult = StringReader(createResp.body).readToEnd()
     println("Created: ${createResult}")
 
     // Create another note
-    let createBody2 = ##"{"title":"Learning Notes","content":"Studying stdx.net.http and stdx.encoding.json","tags":["cangjie","study"]}"##
+    let createBody2 = ##"{"title":"Learning Notes","content":"Studying stdx.net.http and stdx.encoding.json over TLS","tags":["cangjie","study"]}"##
     let createResp2 = client.post("${baseUrl}/api/notes", createBody2)
     let createResult2 = StringReader(createResp2.body).readToEnd()
     println("Created: ${createResult2}")

@@ -1,9 +1,12 @@
 package stdx_web
 
 import std.collection.*
-import std.io.{StringReader}
+import std.io.*
+import std.fs.*
 import stdx.encoding.json.*
 import stdx.net.http.*
+import stdx.net.tls.*
+import stdx.crypto.x509.X509Certificate
 
 // ============================================================
 // Test 1: Note 模型 JSON 序列化与反序列化
@@ -110,6 +113,29 @@ class TestNoteModel {
         let jsonTags = obj["tags"].asArray()
         @Assert(jsonTags.size(), 4)
         @Assert(jsonTags[3].asString().getValue(), "Q1")
+    }
+
+    @TestCase
+    func testNoteJsonFieldOrder() {
+        let tags = ArrayList<String>()
+        let note = Note(99, "Order", "Check field order", tags)
+        let jv = note.toJsonValue()
+        let obj = jv.asObject()
+        @Assert(obj.containsKey("id"))
+        @Assert(obj.containsKey("title"))
+        @Assert(obj.containsKey("content"))
+        @Assert(obj.containsKey("tags"))
+    }
+
+    @TestCase
+    func testNoteFromJsonPreservesAllFields() {
+        let json = ##"{"id":100,"title":"Full","content":"All fields","tags":["x","y","z"]}"##
+        let note = Note.fromJsonValue(JsonValue.fromStr(json))
+        @Assert(note.id, 100)
+        @Assert(note.title, "Full")
+        @Assert(note.content, "All fields")
+        @Assert(note.tags.size, 3)
+        @Assert(note.tags[2], "z")
     }
 }
 
@@ -280,6 +306,44 @@ class TestNoteService {
         let stats = svc.getStats()
         let obj = stats.asObject()
         @Assert(obj["total_notes"].asInt().getValue(), 0)
+    }
+
+    @TestCase
+    func testCreateAndDeleteMultiple() {
+        let svc = NoteService()
+        let n1 = svc.createNote("A", "1", ArrayList<String>())
+        let n2 = svc.createNote("B", "2", ArrayList<String>())
+        let n3 = svc.createNote("C", "3", ArrayList<String>())
+        @Assert(svc.getAllNotes().size, 3)
+        @Assert(svc.deleteNote(n2.id))
+        @Assert(svc.getAllNotes().size, 2)
+        if (let Some(a) <- svc.getNote(n1.id)) {
+            @Assert(a.title, "A")
+        } else {
+            @Fail("Note A should exist")
+        }
+        if (let Some(c) <- svc.getNote(n3.id)) {
+            @Assert(c.title, "C")
+        } else {
+            @Fail("Note C should exist")
+        }
+    }
+
+    @TestCase
+    func testUpdatePreservesId() {
+        let svc = NoteService()
+        let tags = ArrayList<String>()
+        tags.add("orig")
+        let created = svc.createNote("Orig", "Content", tags)
+        let origId = created.id
+
+        let newTags = ArrayList<String>()
+        newTags.add("new")
+        if (let Some(updated) <- svc.updateNote(origId, "New", "New content", newTags)) {
+            @Assert(updated.id, origId)
+        } else {
+            @Fail("Update should succeed")
+        }
     }
 }
 
@@ -497,6 +561,16 @@ class TestNoteAPI {
     }
 
     @TestCase
+    func testInvalidJsonBodyAPI() {
+        let client = _client.getOrThrow()
+        let resp = client.post("${_baseUrl}/api/notes", "not json at all")
+        let respBody = StringReader(resp.body).readToEnd()
+        @Assert(resp.status == 400)
+        let obj = JsonValue.fromStr(respBody).asObject()
+        @Assert(obj.containsKey("error"))
+    }
+
+    @TestCase
     func testFullWorkflowAPI() {
         let client = _client.getOrThrow()
 
@@ -546,5 +620,192 @@ class TestNoteAPI {
         let getResp3 = client.get("${_baseUrl}/api/note?id=${id}")
         StringReader(getResp3.body).readToEnd()
         @Assert(getResp3.status == 404)
+    }
+}
+
+// ============================================================
+// Test 4: HTTPS API 集成测试
+// ============================================================
+@Test
+class TestNoteHTTPSAPI {
+    var _server: ?NoteServer = None
+    var _client: ?Client = None
+    var _baseUrl: String = ""
+
+    @BeforeAll
+    func setup() {
+        let certPem = String.fromUtf8(readToEnd(File("./certs/server.crt", Read)))
+        let keyPem = String.fromUtf8(readToEnd(File("./certs/server.key", Read)))
+        let caPem = String.fromUtf8(readToEnd(File("./certs/ca.crt", Read)))
+
+        let service = NoteService()
+        let server = NoteServer(service)
+        server.startTls("127.0.0.1", 0, certPem, keyPem)
+        _server = server
+        _baseUrl = "https://127.0.0.1:${server.getPort()}"
+
+        var tlsConfig = TlsClientConfig()
+        tlsConfig.verifyMode = CustomCA(X509Certificate.decodeFromPem(caPem))
+        _client = ClientBuilder().tlsConfig(tlsConfig).build()
+    }
+
+    @AfterAll
+    func teardown() {
+        if (let Some(c) <- _client) { c.close() }
+        if (let Some(s) <- _server) { s.stop() }
+    }
+
+    @TestCase
+    func testHttpsCreateNoteAPI() {
+        let client = _client.getOrThrow()
+        let body = ##"{"title":"HTTPS Note","content":"Created over TLS","tags":["https","secure"]}"##
+        let resp = client.post("${_baseUrl}/api/notes", body)
+        let respBody = StringReader(resp.body).readToEnd()
+        @Assert(resp.status == 200)
+        let obj = JsonValue.fromStr(respBody).asObject()
+        @Assert(obj["title"].asString().getValue(), "HTTPS Note")
+        @Assert(obj.containsKey("id"))
+    }
+
+    @TestCase
+    func testHttpsListNotesAPI() {
+        let client = _client.getOrThrow()
+        // Create a note first
+        let body = ##"{"title":"HTTPS List","content":"List over TLS","tags":["httpslist"]}"##
+        let createResp = client.post("${_baseUrl}/api/notes", body)
+        StringReader(createResp.body).readToEnd()
+
+        // List
+        let listResp = client.get("${_baseUrl}/api/notes")
+        let listBody = StringReader(listResp.body).readToEnd()
+        @Assert(listResp.status == 200)
+        let obj = JsonValue.fromStr(listBody).asObject()
+        @Assert(obj.containsKey("notes"))
+        @Assert(obj["total"].asInt().getValue() >= 1)
+    }
+
+    @TestCase
+    func testHttpsGetNoteAPI() {
+        let client = _client.getOrThrow()
+        // Create
+        let body = ##"{"title":"HTTPS Get","content":"Get via TLS","tags":["httpsget"]}"##
+        let createResp = client.post("${_baseUrl}/api/notes", body)
+        let createBody = StringReader(createResp.body).readToEnd()
+        let created = JsonValue.fromStr(createBody).asObject()
+        let id = created["id"].asInt().getValue()
+
+        // Get
+        let getResp = client.get("${_baseUrl}/api/note?id=${id}")
+        let getBody = StringReader(getResp.body).readToEnd()
+        @Assert(getResp.status == 200)
+        let got = JsonValue.fromStr(getBody).asObject()
+        @Assert(got["title"].asString().getValue(), "HTTPS Get")
+    }
+
+    @TestCase
+    func testHttpsUpdateNoteAPI() {
+        let client = _client.getOrThrow()
+        // Create
+        let createBody = ##"{"title":"HTTPS Update","content":"Old","tags":["httpsupd"]}"##
+        let createResp = client.post("${_baseUrl}/api/notes", createBody)
+        let createRespBody = StringReader(createResp.body).readToEnd()
+        let created = JsonValue.fromStr(createRespBody).asObject()
+        let id = created["id"].asInt().getValue()
+
+        // Update
+        let updateBody = ##"{"id":ID_PLACEHOLDER,"title":"HTTPS Updated","content":"New","tags":["httpsupd","done"]}"##
+            .replace("ID_PLACEHOLDER", id.toString())
+        let updateReq = HttpRequestBuilder()
+            .put()
+            .url("${_baseUrl}/api/note")
+            .header("Content-Type", "application/json")
+            .body(updateBody)
+            .build()
+        let updateResp = client.send(updateReq)
+        let updateRespBody = StringReader(updateResp.body).readToEnd()
+        @Assert(updateResp.status == 200)
+        let updated = JsonValue.fromStr(updateRespBody).asObject()
+        @Assert(updated["title"].asString().getValue(), "HTTPS Updated")
+    }
+
+    @TestCase
+    func testHttpsDeleteNoteAPI() {
+        let client = _client.getOrThrow()
+        // Create
+        let body = ##"{"title":"HTTPS Del","content":"Delete via TLS","tags":["httpsdel"]}"##
+        let createResp = client.post("${_baseUrl}/api/notes", body)
+        let createRespBody = StringReader(createResp.body).readToEnd()
+        let created = JsonValue.fromStr(createRespBody).asObject()
+        let id = created["id"].asInt().getValue()
+
+        // Delete
+        let deleteResp = client.delete("${_baseUrl}/api/note?id=${id}")
+        let deleteBody = StringReader(deleteResp.body).readToEnd()
+        @Assert(deleteResp.status == 200)
+        let result = JsonValue.fromStr(deleteBody).asObject()
+        @Assert(result["success"].asBool().getValue())
+
+        // Verify gone
+        let getResp = client.get("${_baseUrl}/api/note?id=${id}")
+        StringReader(getResp.body).readToEnd()
+        @Assert(getResp.status == 404)
+    }
+
+    @TestCase
+    func testHttpsGetStatsAPI() {
+        let client = _client.getOrThrow()
+        let body = ##"{"title":"HTTPS Stats","content":"Stats via TLS","tags":["httpsstat"]}"##
+        let createResp = client.post("${_baseUrl}/api/notes", body)
+        StringReader(createResp.body).readToEnd()
+
+        let statsResp = client.get("${_baseUrl}/api/stats")
+        let statsBody = StringReader(statsResp.body).readToEnd()
+        @Assert(statsResp.status == 200)
+        let obj = JsonValue.fromStr(statsBody).asObject()
+        @Assert(obj.containsKey("total_notes"))
+        @Assert(obj.containsKey("tag_counts"))
+    }
+
+    @TestCase
+    func testHttpsFullWorkflow() {
+        let client = _client.getOrThrow()
+
+        // 1. Create
+        let createBody = ##"{"title":"HTTPS Workflow","content":"Full HTTPS test","tags":["https","e2e"]}"##
+        let createResp = client.post("${_baseUrl}/api/notes", createBody)
+        let createRespBody = StringReader(createResp.body).readToEnd()
+        @Assert(createResp.status == 200)
+        let created = JsonValue.fromStr(createRespBody).asObject()
+        let id = created["id"].asInt().getValue()
+
+        // 2. Get
+        let getResp = client.get("${_baseUrl}/api/note?id=${id}")
+        let getBody = StringReader(getResp.body).readToEnd()
+        @Assert(getResp.status == 200)
+        let got = JsonValue.fromStr(getBody).asObject()
+        @Assert(got["title"].asString().getValue(), "HTTPS Workflow")
+
+        // 3. Update
+        let updateBody = ##"{"id":ID_PLACEHOLDER,"title":"HTTPS Updated WF","content":"Updated","tags":["https","updated"]}"##
+            .replace("ID_PLACEHOLDER", id.toString())
+        let updateReq = HttpRequestBuilder()
+            .put()
+            .url("${_baseUrl}/api/note")
+            .header("Content-Type", "application/json")
+            .body(updateBody)
+            .build()
+        let updateResp = client.send(updateReq)
+        StringReader(updateResp.body).readToEnd()
+        @Assert(updateResp.status == 200)
+
+        // 4. Delete
+        let deleteResp = client.delete("${_baseUrl}/api/note?id=${id}")
+        StringReader(deleteResp.body).readToEnd()
+        @Assert(deleteResp.status == 200)
+
+        // 5. Verify gone
+        let getResp2 = client.get("${_baseUrl}/api/note?id=${id}")
+        StringReader(getResp2.body).readToEnd()
+        @Assert(getResp2.status == 404)
     }
 }
