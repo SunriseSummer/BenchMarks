@@ -16,12 +16,11 @@
 ```
 kalman/
 ├── cjpm.toml                  # 仓颉项目配置
-├── build.sh                   # 构建脚本（编译 C 库 + 仓颉项目）
 ├── c_src/
 │   ├── kalman_filter.h        # C 头文件（API 声明）
 │   └── kalman_filter.c        # C 实现（卡尔曼滤波算法）
 ├── libs/                      # 编译后的 C 动态库存放目录
-│   └── libkalman_filter.so    # （构建生成）
+│   └── libkalman_filter.so/dll
 └── src/
     ├── main.cj                # 入口文件（演示用）
     ├── kalman_ffi.cj          # FFI 声明（foreign 函数）
@@ -52,32 +51,7 @@ cjpm init --name kalman --type=executable
 kalman_filter = { path = "./libs/" }
 ```
 
-> **说明**：`[ffi.c]` 节指定 C 库依赖，`kalman_filter` 对应 `libs/libkalman_filter.so`。`link-option = "-lm"` 链接数学库。
-
-### 2.3 构建脚本 build.sh
-
-```bash
-#!/bin/bash
-set -e
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
-
-# 1. 编译 C 库
-mkdir -p libs
-clang -shared -fPIC -fstack-protector-all c_src/kalman_filter.c -o libs/libkalman_filter.so -lm
-
-# 2. 设置动态库搜索路径
-export LD_LIBRARY_PATH="$SCRIPT_DIR/libs:$LD_LIBRARY_PATH"
-
-# 3. 构建仓颉项目
-cjpm build
-
-# 可选：运行测试
-# cjpm test
-
-# 可选：运行演示
-# cjpm run
-```
+> **说明**：`[ffi.c]` 节指定 C 库依赖，`kalman_filter` 对应 `libs/libkalman_filter.so`，`link-option = "-lm"` 链接数学库。
 
 ---
 
@@ -419,40 +393,12 @@ main(): Int64 {
 
 ## 10. 验收标准
 
-1. **C 库编译成功**：`clang -shared -fPIC -fstack-protector-all c_src/kalman_filter.c -o libs/libkalman_filter.so -lm` 无错误
-2. **仓颉编译成功**：`cjpm build` 无错误，无警告
+1. **C 库编译成功**
+2. **仓颉项目编译成功**：`cjpm build` 无错误，无警告
 3. **运行正常**：`cjpm run` 输出目标跟踪演示，显示滤波器收敛
 4. **全部测试通过**：`cjpm test` 全部 34 个测试通过，0 失败
 5. **代码结构清晰**：C 模块和仓颉代码分层明确，文件划分合理
 
----
-
-## 11. 技术要点提示
-
-### 11.1 仓颉 FFI 关键点
-
-- `foreign {}` 块声明 C 函数，调用时须在 `unsafe {}` 块内
-- C 的不透明指针 `KalmanFilter*` 映射为 `CPointer<Unit>`
-- 使用 `acquireArrayRawData` / `releaseArrayRawData` 获取仓颉 `Array` 的底层 C 指针，避免数据拷贝
-- `acquireArrayRawData` 和 `releaseArrayRawData` 必须配对使用
-
-### 11.2 仓颉语法注意事项
-
-- 仓颉没有 `Float64.PI` 常量，须自行定义 `let KF_PI = 3.14159265358979323846`
-- `Array<T>(n, repeat: value)` 创建固定大小数组
-- `Array<T>(n, {i => expr})` 用初始化函数创建数组
-- 仓颉不支持 Rust/Swift 风格的溢出运算符（如 `&*`、`&+`），随机数生成器应使用 xorshift 等位运算方案
-
-### 11.3 构建流程
-
-```bash
-# 1. 确保 Cangjie SDK 已配置（source envsetup.sh）
-# 2. 编译 C 库
-clang -shared -fPIC -fstack-protector-all c_src/kalman_filter.c -o libs/libkalman_filter.so -lm
-# 3. 设置动态库路径
-export LD_LIBRARY_PATH=$(pwd)/libs:$LD_LIBRARY_PATH
-# 4. 构建
-cjpm build
 # 5. 测试
 cjpm test
 # 6. 运行
