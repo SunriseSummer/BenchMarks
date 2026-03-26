@@ -2,7 +2,7 @@
 
 ## 1. 任务目标
 
-使用仓颉（Cangjie）编程语言的**宏（Macro）系统**，实现一个类似 C# LINQ 的集合查询 DSL（Domain Specific Language），支持：
+使用仓颉（Cangjie）编程语言的**宏（Macro）**特性，实现一个类似 C# LINQ 的集合查询 DSL（Domain Specific Language），支持：
 
 - **过滤**（where）：根据条件筛选集合元素
 - **映射**（select）：将元素转换为新的值
