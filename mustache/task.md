@@ -38,8 +38,6 @@ mustache/
 [dependencies]
 ```
 
-所有源文件使用 `package mustache`。
-
 ## 3. API 规格
 
 ### 3.1 MustacheException
