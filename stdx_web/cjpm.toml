@@ -7,6 +7,7 @@
 
 [dependencies]
 
+# 注意：path-option 需替换为实际的 stdx 静态库路径
 [target.x86_64-unknown-linux-gnu]
   [target.x86_64-unknown-linux-gnu.bin-dependencies]
-    path-option = ["/tmp/stdx_extract/linux_x86_64_cjnative/static/stdx"]
+    path-option = ["<STDX_PATH>/static/stdx"]
