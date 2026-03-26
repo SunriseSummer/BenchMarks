@@ -3,10 +3,10 @@ macro package macros
 import std.ast.*
 import std.collection.*
 
-func subTokens(tokens: Tokens, start: Int64, endPos: Int64): Tokens {
+func subTokens(tokens: Tokens, startIdx: Int64, endIdx: Int64): Tokens {
     var result = ArrayList<Token>()
-    var i = start
-    while (i < endPos) {
+    var i = startIdx
+    while (i < endIdx) {
         result.add(tokens[i])
         i += 1
     }
@@ -152,6 +152,7 @@ func generateCount(iterVar: Token, collExpr: Tokens, whereExprs: ArrayList<Token
         }
         _query_count
     })
+    // Append () to immediately invoke the lambda: { => ... }()
     code = code + quote(\(\))
     return code
 }
@@ -197,6 +198,7 @@ func generateSelect(resultType: Tokens, iterVar: Token, collExpr: Tokens,
         $(sortCode)
         _query_result.toArray()
     })
+    // Append () to immediately invoke the lambda: { => ... }()
     code = code + quote(\(\))
     return code
 }
