@@ -254,7 +254,7 @@ class TestComplexQuery {
 
     @TestCase
     func testEmptySource() {
-        let arr = Array<Int64>(0, {_i => 0})
+        let arr = Array<Int64>(0, {_ => 0})
         let result = @query[Int64](from x in arr select x)
         @Assert(result.size == 0)
     }
