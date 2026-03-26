@@ -32,6 +32,8 @@ class SectionNode <: MustacheNode {
 }
 
 // HTML escape utility
+let SINGLE_QUOTE: Rune = Rune(39)
+
 func htmlEscape(s: String): String {
     let sb = StringBuilder()
     for (r in s.runes()) {
@@ -43,7 +45,7 @@ func htmlEscape(s: String): String {
             sb.append("&gt;")
         } else if (r == r'"') {
             sb.append("&quot;")
-        } else if (UInt32(r) == 39) {
+        } else if (r == SINGLE_QUOTE) {
             sb.append("&#39;")
         } else {
             sb.append(r)
