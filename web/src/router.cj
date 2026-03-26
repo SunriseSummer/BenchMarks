@@ -23,10 +23,8 @@ class RouteEntry {
         this.method = method
         this.handler = handler
         this.segments = ArrayList<String>()
-        for (s in pattern.split("/")) {
-            if (s.size > 0) {
-                segments.add(s)
-            }
+        for (s in pattern.split("/", removeEmpty: true)) {
+            segments.add(s)
         }
     }
 }
@@ -37,16 +35,16 @@ public class Router {
 
     public init() {}
 
+    // Register a route
     public func addRoute(method: HttpMethod, pattern: String, handler: (HttpContext) -> Unit): Unit {
         _routes.add(RouteEntry(method, pattern, handler))
     }
 
+    // Find a matching route for the given method and path
     public func findRoute(method: HttpMethod, path: String): ?RouteMatch {
         let pathSegments = ArrayList<String>()
-        for (s in path.split("/")) {
-            if (s.size > 0) {
-                pathSegments.add(s)
-            }
+        for (s in path.split("/", removeEmpty: true)) {
+            pathSegments.add(s)
         }
 
         for (route in _routes) {
@@ -60,6 +58,7 @@ public class Router {
         return None
     }
 
+    // Match route segments against path segments, extracting :param values
     func matchSegments(routeSegs: ArrayList<String>, pathSegs: ArrayList<String>): ?HashMap<String, String> {
         if (routeSegs.size != pathSegs.size) {
             return None
@@ -69,17 +68,38 @@ public class Router {
             let rs = routeSegs[i]
             let ps = pathSegs[i]
             if (rs.startsWith(":")) {
-                // Extract parameter name (remove leading ':')
-                let runes = rs.toRuneArray()
-                let sb = StringBuilder()
-                for (j in 1..runes.size) {
-                    sb.append(runes[j])
-                }
-                params[sb.toString()] = ps
+                params[rs[1..rs.size]] = ps
             } else if (rs != ps) {
                 return None
             }
         }
         return params
+    }
+}
+
+// Route group with a shared path prefix
+public class RouteGroup {
+    let _router: Router
+    let _prefix: String
+
+    init(router: Router, prefix: String) {
+        _router = router
+        _prefix = prefix
+    }
+
+    public func get(pattern: String, handler: (HttpContext) -> Unit): Unit {
+        _router.addRoute(HttpMethod.GET, _prefix + pattern, handler)
+    }
+
+    public func post(pattern: String, handler: (HttpContext) -> Unit): Unit {
+        _router.addRoute(HttpMethod.POST, _prefix + pattern, handler)
+    }
+
+    public func put(pattern: String, handler: (HttpContext) -> Unit): Unit {
+        _router.addRoute(HttpMethod.PUT, _prefix + pattern, handler)
+    }
+
+    public func delete(pattern: String, handler: (HttpContext) -> Unit): Unit {
+        _router.addRoute(HttpMethod.DELETE, _prefix + pattern, handler)
     }
 }

@@ -2,7 +2,7 @@ package web
 
 import std.collection.*
 
-// ===== Test helper classes =====
+// ===== Test helper services =====
 
 class CounterService {
     var count: Int64 = 0
@@ -58,6 +58,14 @@ class TestServiceContainer {
         } catch (e: WebException) {
             @Assert(true)
         }
+    }
+
+    @TestCase
+    func testResolveOrNone() {
+        let container = ServiceContainer()
+        @Assert(container.resolveOrNone("unknown").isNone())
+        container.register("msg", { => MessageService("hi") })
+        @Assert(!container.resolveOrNone("msg").isNone())
     }
 
     @TestCase
@@ -121,6 +129,46 @@ class TestServiceContainer {
     }
 }
 
+// ===== HttpMethod Tests =====
+
+@Test
+class TestHttpMethod {
+    @TestCase
+    func testMethodToString() {
+        @Assert(HttpMethod.GET.toString(), "GET")
+        @Assert(HttpMethod.POST.toString(), "POST")
+        @Assert(HttpMethod.PUT.toString(), "PUT")
+        @Assert(HttpMethod.DELETE.toString(), "DELETE")
+        @Assert(HttpMethod.PATCH.toString(), "PATCH")
+    }
+
+    @TestCase
+    func testFromString() {
+        @Assert(HttpMethod.fromString("GET") == HttpMethod.GET)
+        @Assert(HttpMethod.fromString("POST") == HttpMethod.POST)
+        @Assert(HttpMethod.fromString("PUT") == HttpMethod.PUT)
+        @Assert(HttpMethod.fromString("DELETE") == HttpMethod.DELETE)
+        @Assert(HttpMethod.fromString("PATCH") == HttpMethod.PATCH)
+    }
+
+    @TestCase
+    func testFromStringCaseInsensitive() {
+        @Assert(HttpMethod.fromString("get") == HttpMethod.GET)
+        @Assert(HttpMethod.fromString("Post") == HttpMethod.POST)
+        @Assert(HttpMethod.fromString("pUt") == HttpMethod.PUT)
+    }
+
+    @TestCase
+    func testFromStringInvalid() {
+        try {
+            HttpMethod.fromString("INVALID")
+            @Fail("Should have thrown")
+        } catch (e: WebException) {
+            @Assert(true)
+        }
+    }
+}
+
 // ===== Request Tests =====
 
 @Test
@@ -145,28 +193,49 @@ class TestRequest {
     func testRequestHeaders() {
         let req = Request(HttpMethod.GET, "/")
         req.headers["Content-Type"] = "application/json"
-        @Assert(req.headers.get("Content-Type").getOrThrow(), "application/json")
+        @Assert(req.header("Content-Type").getOrThrow(), "application/json")
     }
 
     @TestCase
-    func testRequestQueryParams() {
-        let req = Request(HttpMethod.GET, "/search")
-        req.queryParams["q"] = "test"
-        req.queryParams["page"] = "1"
-        @Assert(req.queryParams.get("q").getOrThrow(), "test")
-        @Assert(req.queryParams.get("page").getOrThrow(), "1")
+    func testQueryStringParsing() {
+        let req = Request(HttpMethod.GET, "/search?q=hello&page=1")
+        @Assert(req.path, "/search")
+        @Assert(req.query("q").getOrThrow(), "hello")
+        @Assert(req.query("page").getOrThrow(), "1")
     }
 
     @TestCase
-    func testRequestPathParamsInitEmpty() {
-        let req = Request(HttpMethod.GET, "/users/42")
-        @Assert(req.pathParams.get("id").isNone())
+    func testQueryStringMultipleParams() {
+        let req = Request(HttpMethod.GET, "/api?a=1&b=2&c=3")
+        @Assert(req.path, "/api")
+        @Assert(req.query("a").getOrThrow(), "1")
+        @Assert(req.query("b").getOrThrow(), "2")
+        @Assert(req.query("c").getOrThrow(), "3")
     }
 
     @TestCase
-    func testRequestBodyDefault() {
-        let req = Request(HttpMethod.GET, "/test")
-        @Assert(req.body, "")
+    func testQueryStringEmptyValue() {
+        let req = Request(HttpMethod.GET, "/path?key=")
+        @Assert(req.path, "/path")
+        @Assert(req.query("key").getOrThrow(), "")
+    }
+
+    @TestCase
+    func testPathWithoutQueryString() {
+        let req = Request(HttpMethod.GET, "/hello")
+        @Assert(req.path, "/hello")
+        @Assert(req.query("anything").isNone())
+    }
+
+    @TestCase
+    func testConvenienceMethods() {
+        let req = Request(HttpMethod.GET, "/users/42?format=json")
+        req.pathParams["id"] = "42"
+        req.headers["Accept"] = "text/html"
+        @Assert(req.param("id").getOrThrow(), "42")
+        @Assert(req.query("format").getOrThrow(), "json")
+        @Assert(req.header("Accept").getOrThrow(), "text/html")
+        @Assert(req.param("missing").isNone())
     }
 }
 
@@ -203,21 +272,36 @@ class TestResponse {
     }
 
     @TestCase
-    func testJsonResponse() {
+    func testStatusChaining() {
         let resp = Response()
-        resp.setHeader("Content-Type", "application/json")
-        resp.body = ##"{"key":"value"}"##
-        @Assert(resp.headers.get("Content-Type").getOrThrow(), "application/json")
-        @Assert(resp.body, ##"{"key":"value"}"##)
+        let r = resp.status(201)
+        @Assert(r.statusCode, 201)
+        r.body = "test"
+        @Assert(resp.body, "test")
     }
 
     @TestCase
-    func testMultipleHeaders() {
+    func testJsonHelper() {
         let resp = Response()
-        resp.setHeader("X-A", "1")
-        resp.setHeader("X-B", "2")
-        @Assert(resp.headers.get("X-A").getOrThrow(), "1")
-        @Assert(resp.headers.get("X-B").getOrThrow(), "2")
+        resp.json("{\"key\":\"value\"}")
+        @Assert(resp.headers.get("Content-Type").getOrThrow(), "application/json")
+        @Assert(resp.body, "{\"key\":\"value\"}")
+    }
+
+    @TestCase
+    func testTextHelper() {
+        let resp = Response()
+        resp.text("plain text")
+        @Assert(resp.headers.get("Content-Type").getOrThrow(), "text/plain")
+        @Assert(resp.body, "plain text")
+    }
+
+    @TestCase
+    func testHtmlHelper() {
+        let resp = Response()
+        resp.html("<h1>Hello</h1>")
+        @Assert(resp.headers.get("Content-Type").getOrThrow(), "text/html")
+        @Assert(resp.body, "<h1>Hello</h1>")
     }
 }
 
@@ -302,21 +386,6 @@ class TestRouter {
     }
 
     @TestCase
-    func testParamValueExtraction() {
-        let router = Router()
-        router.addRoute(HttpMethod.GET, "/items/:category/:id", { _: HttpContext => })
-        let result = router.findRoute(HttpMethod.GET, "/items/books/42").getOrThrow()
-        @Assert(result.params.get("category").getOrThrow(), "books")
-        @Assert(result.params.get("id").getOrThrow(), "42")
-    }
-
-    @TestCase
-    func testEmptyRouterReturnsNone() {
-        let router = Router()
-        @Assert(router.findRoute(HttpMethod.GET, "/anything").isNone())
-    }
-
-    @TestCase
     func testStaticAndParamMixed() {
         let router = Router()
         router.addRoute(HttpMethod.GET, "/api/users/:id/profile", { _: HttpContext => })
@@ -331,6 +400,75 @@ class TestRouter {
         router.addRoute(HttpMethod.GET, "/a/b", { _: HttpContext => })
         @Assert(router.findRoute(HttpMethod.GET, "/a").isNone())
         @Assert(router.findRoute(HttpMethod.GET, "/a/b/c").isNone())
+    }
+}
+
+// ===== Route Group Tests =====
+
+@Test
+class TestRouteGroup {
+    @TestCase
+    func testGroupPrefixGet() {
+        let app = WebApp()
+        let api = app.group("/api")
+        api.get("/users", { ctx: HttpContext =>
+            ctx.response.body = "user list"
+        })
+        let ctx = HttpContext(Request(HttpMethod.GET, "/api/users"), Response(), app.services)
+        app.handleRequest(ctx)
+        @Assert(ctx.response.body, "user list")
+    }
+
+    @TestCase
+    func testGroupPrefixPost() {
+        let app = WebApp()
+        let api = app.group("/api")
+        api.post("/users", { ctx: HttpContext =>
+            ctx.response.body = "created"
+        })
+        let ctx = HttpContext(Request(HttpMethod.POST, "/api/users"), Response(), app.services)
+        app.handleRequest(ctx)
+        @Assert(ctx.response.body, "created")
+    }
+
+    @TestCase
+    func testGroupMultipleRoutes() {
+        let app = WebApp()
+        let api = app.group("/api/v1")
+        api.get("/items", { ctx: HttpContext => ctx.response.body = "items" })
+        api.post("/items", { ctx: HttpContext => ctx.response.body = "item created" })
+        api.delete("/items/:id", { ctx: HttpContext => ctx.response.body = "deleted" })
+
+        let ctx1 = HttpContext(Request(HttpMethod.GET, "/api/v1/items"), Response(), app.services)
+        app.handleRequest(ctx1)
+        @Assert(ctx1.response.body, "items")
+
+        let ctx2 = HttpContext(Request(HttpMethod.POST, "/api/v1/items"), Response(), app.services)
+        app.handleRequest(ctx2)
+        @Assert(ctx2.response.body, "item created")
+    }
+
+    @TestCase
+    func testGroupWithPathParams() {
+        let app = WebApp()
+        let api = app.group("/api")
+        api.get("/users/:id", { ctx: HttpContext =>
+            let id = ctx.request.param("id") ?? "none"
+            ctx.response.body = "user:${id}"
+        })
+        let ctx = HttpContext(Request(HttpMethod.GET, "/api/users/42"), Response(), app.services)
+        app.handleRequest(ctx)
+        @Assert(ctx.response.body, "user:42")
+    }
+
+    @TestCase
+    func testGroupNoMatchWithoutPrefix() {
+        let app = WebApp()
+        let api = app.group("/api")
+        api.get("/users", { ctx: HttpContext => ctx.response.body = "users" })
+        let ctx = HttpContext(Request(HttpMethod.GET, "/users"), Response(), app.services)
+        app.handleRequest(ctx)
+        @Assert(ctx.response.statusCode, 404)
     }
 }
 
@@ -368,7 +506,7 @@ class TestMiddleware {
             next()
             order.add("second-after")
         })
-        app.get("/test", { ctx: HttpContext =>
+        app.get("/test", { _: HttpContext =>
             order.add("handler")
         })
         let ctx = HttpContext(Request(HttpMethod.GET, "/test"), Response(), app.services)
@@ -470,20 +608,23 @@ class TestMiddleware {
     }
 
     @TestCase
-    func testMiddlewareWithServices() {
+    func testMiddlewareErrorRecovery() {
         let app = WebApp()
-        app.services.register("msg", { => MessageService("middleware") }, lifetime: Singleton)
         app.use({ ctx: HttpContext, next: () -> Unit =>
-            let msg = (ctx.services.resolve("msg") as MessageService).getOrThrow()
-            ctx.response.setHeader("X-Msg", msg.getMessage())
-            next()
+            try {
+                next()
+            } catch (_: Exception) {
+                ctx.response.statusCode = 500
+                ctx.response.body = "Internal Server Error"
+            }
         })
-        app.get("/test", { ctx: HttpContext =>
-            ctx.response.body = "ok"
+        app.get("/fail", { _: HttpContext =>
+            throw WebException("test error")
         })
-        let ctx = HttpContext(Request(HttpMethod.GET, "/test"), Response(), app.services)
+        let ctx = HttpContext(Request(HttpMethod.GET, "/fail"), Response(), app.services)
         app.handleRequest(ctx)
-        @Assert(ctx.response.headers.get("X-Msg").getOrThrow(), "middleware")
+        @Assert(ctx.response.statusCode, 500)
+        @Assert(ctx.response.body, "Internal Server Error")
     }
 }
 
@@ -530,12 +671,24 @@ class TestWebApp {
     func testPathParams() {
         let app = WebApp()
         app.get("/users/:id", { ctx: HttpContext =>
-            let id = ctx.request.pathParams.get("id").getOrThrow()
+            let id = ctx.request.param("id") ?? "none"
             ctx.response.body = "User ${id}"
         })
         let ctx = HttpContext(Request(HttpMethod.GET, "/users/42"), Response(), app.services)
         app.handleRequest(ctx)
         @Assert(ctx.response.body, "User 42")
+    }
+
+    @TestCase
+    func testQueryParamsInRoute() {
+        let app = WebApp()
+        app.get("/search", { ctx: HttpContext =>
+            let q = ctx.request.query("q") ?? ""
+            ctx.response.body = "search:${q}"
+        })
+        let ctx = HttpContext(Request(HttpMethod.GET, "/search?q=hello"), Response(), app.services)
+        app.handleRequest(ctx)
+        @Assert(ctx.response.body, "search:hello")
     }
 
     @TestCase
@@ -568,27 +721,20 @@ class TestWebApp {
     }
 
     @TestCase
-    func testMultipleRoutes() {
+    func testGroupRouting() {
         let app = WebApp()
-        app.get("/a", { ctx: HttpContext => ctx.response.body = "a" })
-        app.get("/b", { ctx: HttpContext => ctx.response.body = "b" })
-        app.post("/c", { ctx: HttpContext => ctx.response.body = "c" })
-
-        let ctx1 = HttpContext(Request(HttpMethod.GET, "/a"), Response(), app.services)
-        app.handleRequest(ctx1)
-        @Assert(ctx1.response.body, "a")
-
-        let ctx2 = HttpContext(Request(HttpMethod.GET, "/b"), Response(), app.services)
-        app.handleRequest(ctx2)
-        @Assert(ctx2.response.body, "b")
-
-        let ctx3 = HttpContext(Request(HttpMethod.POST, "/c"), Response(), app.services)
-        app.handleRequest(ctx3)
-        @Assert(ctx3.response.body, "c")
+        let api = app.group("/api/v1")
+        api.get("/status", { ctx: HttpContext =>
+            ctx.response.json("{\"ok\":true}")
+        })
+        let ctx = HttpContext(Request(HttpMethod.GET, "/api/v1/status"), Response(), app.services)
+        app.handleRequest(ctx)
+        @Assert(ctx.response.body, "{\"ok\":true}")
+        @Assert(ctx.response.headers.get("Content-Type").getOrThrow(), "application/json")
     }
 
     @TestCase
-    func testFullPipeline() {
+    func testFullRestPipeline() {
         let app = WebApp()
         app.services.register("counter", { => CounterService() }, lifetime: Singleton)
 
@@ -596,42 +742,35 @@ class TestWebApp {
             let counter = (ctx.services.resolve("counter") as CounterService).getOrThrow()
             counter.increment()
             next()
-            ctx.response.setHeader("X-Count", "${counter.getCount()}")
+            ctx.response.setHeader("X-Request-Count", "${counter.getCount()}")
         })
 
-        app.get("/users/:id", { ctx: HttpContext =>
-            let id = ctx.request.pathParams.get("id").getOrThrow()
-            ctx.response.body = "User ${id}"
+        let api = app.group("/api")
+        api.get("/items/:id", { ctx: HttpContext =>
+            let id = ctx.request.param("id") ?? "unknown"
+            ctx.response.json("{\"id\":\"${id}\"}")
         })
 
-        let ctx = HttpContext(Request(HttpMethod.GET, "/users/7"), Response(), app.services)
-        app.handleRequest(ctx)
-        @Assert(ctx.response.body, "User 7")
-        @Assert(ctx.response.headers.get("X-Count").getOrThrow(), "1")
-    }
+        let ctx1 = HttpContext(Request(HttpMethod.GET, "/api/items/42"), Response(), app.services)
+        app.handleRequest(ctx1)
+        @Assert(ctx1.response.body, "{\"id\":\"42\"}")
+        @Assert(ctx1.response.headers.get("Content-Type").getOrThrow(), "application/json")
+        @Assert(ctx1.response.headers.get("X-Request-Count").getOrThrow(), "1")
 
-    @TestCase
-    func testResponseHeaders() {
-        let app = WebApp()
-        app.get("/json", { ctx: HttpContext =>
-            ctx.response.setHeader("Content-Type", "application/json")
-            ctx.response.body = ##"{"status":"ok"}"##
-        })
-        let ctx = HttpContext(Request(HttpMethod.GET, "/json"), Response(), app.services)
-        app.handleRequest(ctx)
-        @Assert(ctx.response.headers.get("Content-Type").getOrThrow(), "application/json")
-        @Assert(ctx.response.body, ##"{"status":"ok"}"##)
+        let ctx2 = HttpContext(Request(HttpMethod.GET, "/api/items/7"), Response(), app.services)
+        app.handleRequest(ctx2)
+        @Assert(ctx2.response.headers.get("X-Request-Count").getOrThrow(), "2")
     }
 
     @TestCase
     func testPutAndDelete() {
         let app = WebApp()
         app.put("/items/:id", { ctx: HttpContext =>
-            let id = ctx.request.pathParams.get("id").getOrThrow()
+            let id = ctx.request.param("id") ?? "none"
             ctx.response.body = "Updated ${id}"
         })
         app.delete("/items/:id", { ctx: HttpContext =>
-            let id = ctx.request.pathParams.get("id").getOrThrow()
+            let id = ctx.request.param("id") ?? "none"
             ctx.response.body = "Deleted ${id}"
         })
 

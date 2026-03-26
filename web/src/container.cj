@@ -15,6 +15,7 @@ public class ServiceContainer {
 
     public init() {}
 
+    // Register a service factory with the given lifetime
     public func register(name: String, factory: () -> Object, lifetime!: ServiceLifetime = Transient): Unit {
         _factories[name] = factory
         _lifetimes[name] = lifetime
@@ -24,12 +25,12 @@ public class ServiceContainer {
         }
     }
 
+    // Resolve a service by name; throws WebException if not registered
     public func resolve(name: String): Object {
         if (_factories.get(name).isNone()) {
             throw WebException("Service not found: ${name}")
         }
         let factory = _factories.get(name).getOrThrow()
-
         if (isSingleton(name)) {
             if (let Some(instance) <- _singletons.get(name)) {
                 return instance
@@ -41,15 +42,24 @@ public class ServiceContainer {
         return factory()
     }
 
+    // Safely resolve a service; returns None if not registered
+    public func resolveOrNone(name: String): ?Object {
+        if (!contains(name)) {
+            return None
+        }
+        return resolve(name)
+    }
+
+    // Check if a service is registered
+    public func contains(name: String): Bool {
+        return !_factories.get(name).isNone()
+    }
+
     func isSingleton(name: String): Bool {
         let lifetime = _lifetimes.get(name).getOrThrow()
         match (lifetime) {
             case Singleton => true
             case Transient => false
         }
-    }
-
-    public func contains(name: String): Bool {
-        return !_factories.get(name).isNone()
     }
 }
