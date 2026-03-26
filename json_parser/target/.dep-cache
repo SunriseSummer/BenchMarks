@@ -1,0 +1,50 @@
+{
+  "bin": {},
+  "pkg-build": {},
+  "pkg-test": {
+    "/home/runner/work/BenchMarks/BenchMarks/json_parser/src": {
+      "package": "json_parser",
+      "isMacro": false,
+      "accessLevel": "public",
+      "timeStamp": 1774496260,
+      "dependencies": [],
+      "std-dependencies": [
+        {
+          "orPackage": "",
+          "package": "std.collection",
+          "isStd": true,
+          "imports": [
+            {
+              "file": "/home/runner/work/BenchMarks/BenchMarks/json_parser/src/json_parser_test.cj"
+            },
+            {
+              "file": "/home/runner/work/BenchMarks/BenchMarks/json_parser/src/json_value.cj"
+            }
+          ]
+        },
+        {
+          "orPackage": "",
+          "package": "std.convert",
+          "isStd": true,
+          "imports": [
+            {
+              "file": "/home/runner/work/BenchMarks/BenchMarks/json_parser/src/json_parser.cj"
+            }
+          ]
+        },
+        {
+          "orPackage": "",
+          "package": "std.math",
+          "isStd": true,
+          "imports": [
+            {
+              "file": "/home/runner/work/BenchMarks/BenchMarks/json_parser/src/json_parser_test.cj"
+            }
+          ]
+        }
+      ],
+      "testUsed": false,
+      "mockUsed": false
+    }
+  }
+}

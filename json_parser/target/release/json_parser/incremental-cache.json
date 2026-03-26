@@ -1,0 +1,14 @@
+{
+  "packageInformation": {
+    "json_parser": {
+      "rootPackageName": "json_parser",
+      "fileNameHash": "-7901219574047467241",
+      "timeStamp": 1774496260,
+      "isBuilt": true,
+      "exeName": "main",
+      "hasSubPkgs": true
+    }
+  },
+  "jsonHash": "-55213168733577826",
+  "rootPackageName": "json_parser"
+}
