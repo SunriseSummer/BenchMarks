@@ -1,5 +1,0 @@
-target/
-*.o
-*.a
-*.cjo
-testcase/source/*.mid
