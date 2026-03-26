@@ -61,8 +61,8 @@ public class Request {
 
     public init(method: HttpMethod, path: String) {
         this.method = method
-        this.headers = HashMap<String, String>()
         this.body = ""
+        this.headers = HashMap<String, String>()
         this.pathParams = HashMap<String, String>()
         this.queryParams = HashMap<String, String>()
         this.path = extractPath(path, this.queryParams)
@@ -70,8 +70,8 @@ public class Request {
 
     public init(method: HttpMethod, path: String, body: String) {
         this.method = method
-        this.headers = HashMap<String, String>()
         this.body = body
+        this.headers = HashMap<String, String>()
         this.pathParams = HashMap<String, String>()
         this.queryParams = HashMap<String, String>()
         this.path = extractPath(path, this.queryParams)
